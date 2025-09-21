@@ -12,45 +12,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from google import genai
+import google.generativeai as genai
 import os
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
-api_key = os.environ["GOOGLE_API_KEY"]
 
-# Initialize Google API Client
-client=genai.Client(api_key=api_key)
+# Get the API key from the environment
+api_key = os.environ.get("GOOGLE_API_KEY")
+if not api_key:
+    raise ValueError("GOOGLE_API_KEY environment variable not set.")
 
-# Upload a sample file to the client.files API
-file_path = "/content/image.png"
+# Configure the client library
+genai.configure(api_key=api_key)
+
+# Construct the path to the image file
+script_dir = os.path.dirname(__file__)
+file_path = os.path.join(script_dir, "sample_data", "gemini_logo.png")
+
+# Upload a sample file to the File API
 display_name = "Gemini Logo"
-file_response = client.files.upload(
-    file=open(file_path, "rb"),
-    config={
-        "mime_type":"image/png",
-        "display_name":display_name
-    }
-)
-print(f"Uploaded file {file_response.display_name} as: {file_response.uri}")
+sample_file = genai.upload_file(path=file_path, display_name=display_name)
+print(f"Uploaded file '{sample_file.display_name}' as: {sample_file.uri}")
 
-# Retrieve the uploaded file from the client.files.get
-get_file =client.files.get(name=file_response.name)
-print(f"Retrieved file {get_file.display_name} as: {get_file.uri}")
+# Get the file back from the API
+get_file = genai.get_file(name=sample_file.name)
+print(f"Retrieved file '{get_file.display_name}' as: {get_file.uri}")
 
-# Generate content using the client.models API
+
+# Generate content using the file
 prompt = "Describe the image with a creative description"
-model_name = "gemini-2.0-flash"
-response = client.models.generate_content(
-    model=model_name,
-    contents=[
-      prompt,
-      file_response
-    ]
-)
+model = genai.GenerativeModel(model_name="gemini-1.5-flash")
+response = model.generate_content([prompt, sample_file])
 print(response.text)
 
-# Delete the sample file
-client.files.delete(name=file_response.name)
-print(f"Deleted file {file_response.display_name}")
+# Delete the file
+genai.delete_file(name=sample_file.name)
+print(f"Deleted file {sample_file.display_name}")
